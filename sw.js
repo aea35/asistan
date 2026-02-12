@@ -61,17 +61,20 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-//self.addEventListener('install', (event) => {
-//  event.waitUntil(
-//    caches.open(CACHE_NAME).then((cache) => {
-//      return Promise.all(
-//        OFFLINE_DOSYALAR.map(url => {
-//          return fetch(url).then(res => {
-//            if(!res.ok) throw new Error("Kayıp Dosya: " + url);
-//            return cache.add(url);
-//          }).catch(err => console.log("Hata:", err));
-//        })
-//      );
-//    })
-//  );
-//});
+// sw.js dosyanın install olayını şu şekilde güncelle:
+self.addEventListener('install', (event) => {
+  self.skipWaiting();
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      console.log('[SW] Dosyalar önbelleğe alınıyor...');
+      return cache.addAll(OFFLINE_DOSYALAR);
+    }).then(() => {
+      // Önbellekleme bittiğinde tüm açık sayfalara mesaj gönder
+      return self.clients.matchAll().then(clients => {
+        clients.forEach(client => {
+          client.postMessage({ type: 'CACHE_COMPLETED', message: 'Uygulama artık internetsiz çalışabilir!' });
+        });
+      });
+    })
+  );
+});
