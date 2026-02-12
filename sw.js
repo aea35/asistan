@@ -12,7 +12,6 @@ const OFFLINE_DOSYALAR = [
   './categories.js',
   './dictionary.js',
   './hikayedata.js',
-  './categories.js',
   './data.js',
   './chess.html',
   './sudoku.html',
