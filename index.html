@@ -1059,6 +1059,31 @@
         }
     }
 
+    let deferredPrompt;
+
+    // Bu olay Android ve Chrome'da "Yükleme simgesi çıksın mı?" dendiğinde çalışır
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault(); // Tarayıcının kendi banner'ını engeller (biz butonla çıkaracağız)
+        deferredPrompt = e;
+        
+        // Eğer sayfanda id'si 'customInstallBtn' olan bir buton varsa onu gösterir:
+        const installBtn = document.getElementById('customInstallBtn');
+        if (installBtn) installBtn.style.display = 'block';
+    });
+
+    // Bu fonksiyonu bir butona bağlarsın: <button onclick="triggerInstall()">Yükle</button>
+    async function triggerInstall() {
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log(`Kullanıcı kararı: ${outcome}`);
+            deferredPrompt = null;
+        } else {
+            // iPhone kullanıcıları için rehber mesajı
+            alert("iPhone için: Safari'de 'Paylaş' simgesine dokunup 'Ana Ekrana Ekle' seçeneğini kullanın.");
+        }
+    }
+
 </script>
 </body>
 </html>
