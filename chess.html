@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Alptekin Chess Pro</title>
+    <style>
+        :root {
+            --bg: #121212;
+            --panel: #1e1e1e;
+            --light: #f0d9b5;
+            --dark: #b58863;
+            --sel: rgba(255, 255, 0, 0.5);
+            --hint: rgba(52, 152, 219, 0.4);
+            --last-move: rgba(241, 196, 15, 0.4);
+        }
+
+        /* Temalar */
+        .wood-theme { --light: #f0d9b5; --dark: #b58863; }
+        .modern-theme { --light: #dee3e6; --dark: #8ca2ad; }
+        .forest-theme { --light: #e0e0d1; --dark: #4d7331; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: #fff;
+            margin: 0;
+            padding: 20px 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+            user-select: none;
+        }
+
+        /* Splash Screen */
+        #splash-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #121212; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 9999;
+            transition: opacity 0.8s ease;
+        }
+        .splash-content { text-align: center; }
+        .splash-title { font-size: 28px; font-weight: bold; color: #f0d9b5; letter-spacing: 2px; }
+        .fade-out { opacity: 0; pointer-events: none; }
+
+        /* Oyun Alanı */
+        .game-layout {
+            display: flex; flex-direction: column; align-items: center;
+            gap: 10px; width: 100%; max-width: 500px; margin-top: 40px;
+        }
+
+        .header {
+            width: 100%; display: flex; justify-content: space-between;
+            align-items: center; margin-bottom: 20px;
+        }
+
+        .timer {
+            background: #000; padding: 10px 15px; font-family: monospace;
+            font-size: 1.2rem; border-radius: 8px; border: 1px solid #333;
+            min-width: 70px; text-align: center;
+        }
+        .timer.active { border-color: #2ecc71; color: #2ecc71; box-shadow: 0 0 10px rgba(46,204,113,0.2); }
+
+        #status { font-size: 1.1rem; font-weight: bold; color: #f1c40f; }
+
+        #board-wrapper {
+            position: relative; width: 92vw; height: 92vw;
+            max-width: 480px; max-height: 480px;
+            background: #333; padding: 8px; border-radius: 12px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.6);
+        }
+
+        #chessboard {
+            display: grid; grid-template-columns: repeat(8, 1fr);
+            grid-template-rows: repeat(8, 1fr);
+            width: 100%; height: 100%; border-radius: 4px; overflow: hidden;
+        }
+
+        .square {
+            display: flex; justify-content: center; align-items: center;
+            position: relative;
+        }
+        .light { background: var(--light); }
+        .dark { background: var(--dark); }
+        
+        .square.selected { background: var(--sel) !important; }
+        .square.last-move { background: var(--last-move) !important; }
+        
+        /* İpuçları */
+        .square.hint-dot::after {
+            content: ""; width: 25%; height: 25%;
+            background: rgba(0,0,0,0.2); border-radius: 50%;
+        }
+        .square.hint-capture {
+            box-shadow: inset 0 0 0 4px rgba(231, 76, 60, 0.5) !important;
+        }
+
+        .piece {
+            width: 90%; height: 90%; object-fit: contain;
+            pointer-events: none; z-index: 5;
+        }
+
+        /* Kontroller */
+        .controls-container {
+            width: 100%; background: var(--panel); padding: 15px;
+            border-radius: 15px; border: 1px solid #333;
+            margin-top: 15px; box-sizing: border-box;
+        }
+
+        .controls-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;
+        }
+
+        button, select {
+            padding: 12px 5px; border-radius: 10px; border: none;
+            font-weight: bold; background: #2c3e50; color: #fff;
+            cursor: pointer; font-size: 0.9rem; transition: 0.2s;
+        }
+        button:active { transform: scale(0.95); }
+        .btn-ai { background: #8e44ad !important; }
+        .btn-reset { background: #c0392b !important; }
+
+        /* Notasyon */
+        .notation-box {
+            height: 110px; background: #0a0a0a; border: 1px solid #333;
+            border-radius: 8px; overflow-y: auto; padding: 10px;
+            font-family: 'Courier New', monospace; font-size: 0.85rem;
+        }
+        .notation-row {
+            display: grid; grid-template-columns: 40px 1fr 1fr;
+            border-bottom: 1px solid #222; padding: 4px 0; color: #ddd;
+        }
+        .notation-row b { color: #f1c40f; }
+    </style>
+</head>
+<body class="wood-theme">
+
+    <div id="splash-screen">
+        <div class="splash-content">
+            <div class="splash-title">ALPTEKİN CHESS</div>
+            <div style="font-size: 60px; margin: 20px 0;">♞</div>
+            <div style="font-size: 14px; color: #888; letter-spacing: 3px;">PRO 2026</div>
+        </div>
+    </div>
+
+    <div class="game-layout">
+        <div class="header">
+            <div id="timer-black" class="timer">10:00</div>
+            <div id="status">Beyaz Sırası</div>
+            <div id="timer-white" class="timer">10:00</div>
+        </div>
+
+        <div id="board-wrapper">
+            <div id="chessboard"></div>
+        </div>
+
+        <div class="controls-container">
+            <div class="controls-grid">
+                <select onchange="document.body.className = this.value + '-theme'">
+                    <option value="wood">Klasik Ahşap</option>
+                    <option value="modern">Modern Stil</option>
+                    <option value="forest">Yeşil Orman</option>
+                </select>
+                <select id="difficulty">
+                    <option value="1">Seviye: Kolay</option>
+                    <option value="2" selected>Seviye: Orta</option>
+                    <option value="3">Seviye: Uzman</option>
+                </select>
+                <button onclick="undo()">⏮ Geri Al</button>
+                <button onclick="getHint()">💡 İpucu</button>
+                <button class="btn-ai" onclick="aiAutoPlay()">🤖 AI Oyna</button>
+                <button class="btn-reset" onclick="resetGame()">🔄 Yeni Oyun</button>
+            </div>
+            <div id="notation-list" class="notation-box"></div>
+        </div>
+    </div>
+
+<script>
+    // --- SABİTLER ---
+    const IMGS = {
+        'p': './assets/imaj/p1.svg', 'n': './assets/imaj/n1.svg', 'b': './assets/imaj/b1.svg', 'r': './assets/imaj/r1.svg', 'q': './assets/imaj/q1.svg', 'k': './assets/imaj/k1.svg',
+        'P': './assets/imaj/P.svg', 'N': './assets/imaj/N.svg', 'B': './assets/imaj/B.svg', 'R': './assets/imaj/R.svg', 'Q': './assets/imaj/Q.svg', 'K': './assets/imaj/K.svg'
+    };
+    
+    // Ses dosyalarının yolu assets/imaj/ olarak belirtilmişti
+    const SOUNDS = {
+        move: new Audio('./assets/sound/move.mp3'),
+        capture: new Audio('./assets/sound/capture.mp3'),
+        check: new Audio('./assets/sound/check.mp3')
+    };
+
+    const VALUES = { p: 10, n: 32, b: 33, r: 50, q: 90, k: 900 };
+
+    // --- OYUN DURUMU ---
+    let board = [], turn = 'white', gameOver = false;
+    let selectedSq = null, lastMove = null, history = [], legalMovesForSelected = [];
+    let timerInterval, timers = { white: 600, black: 600 };
+
+    // --- BAŞLATMA ---
+    document.addEventListener("DOMContentLoaded", () => {
+        setTimeout(() => {
+            const spl = document.getElementById('splash-screen');
+            if (spl) spl.classList.add('fade-out');
+            init();
+        }, 1800);
+    });
+
+    function init() {
+        // Tahta Başlangıç Pozisyonu (Küçük harf: Siyah, Büyük harf: Beyaz)
+        board = [
+            ['r','n','b','q','k','b','n','r'],
+            ['p','p','p','p','p','p','p','p'],
+            ['','','','','','','',''],
+            ['','','','','','','',''],
+            ['','','','','','','',''],
+            ['','','','','','','',''],
+            ['P','P','P','P','P','P','P','P'],
+            ['R','N','B','Q','K','B','N','R']
+        ];
+        turn = 'white';
+        gameOver = false;
+        history = [];
+        selectedSq = null;
+        lastMove = null;
+        legalMovesForSelected = [];
+        timers = { white: 600, black: 600 }; // 10 dakika
+
+        document.getElementById("notation-list").innerHTML = "";
+        document.getElementById("status").textContent = "Beyaz Sırası";
+        
+        startTimer();
+        render();
+    }
+
+    // --- ÇİZİM VE ETKİLEŞİM ---
+    function render() {
+        const boardEl = document.getElementById("chessboard");
+        boardEl.innerHTML = "";
+        
+        const wCheck = isInCheck('white', board);
+        const bCheck = isInCheck('black', board);
+
+        for(let r=0; r<8; r++) {
+            for(let c=0; c<8; c++) {
+                const sq = document.createElement("div");
+                sq.className = `square ${(r+c)%2 === 0 ? 'light' : 'dark'}`;
+
+                // Son hamle renklendirmesi
+                if(lastMove && ((lastMove.fr===r && lastMove.fc===c) || (lastMove.tr===r && lastMove.tc===c))) {
+                    sq.classList.add("last-move");
+                }
+
+                // Seçili kare renklendirmesi
+                if(selectedSq && selectedSq.r===r && selectedSq.c===c) {
+                    sq.classList.add("selected");
+                }
+
+                // İpuçları (Hamle noktaları)
+                if(legalMovesForSelected.some(m => m[0]===r && m[1]===c)) {
+                    sq.classList.add(board[r][c] !== "" ? "hint-capture" : "hint-dot");
+                }
+
+                const p = board[r][c];
+                if(p) {
+                    const img = document.createElement("img");
+                    img.src = IMGS[p];
+                    img.className = "piece";
+                    // Şah çekilme durumu (Kırmızı Arka Plan)
+                    if((p==='K' && wCheck) || (p==='k' && bCheck)) {
+                        sq.style.background = "radial-gradient(circle, rgba(231, 76, 60, 0.8) 0%, transparent 80%)";
+                    }
+                    sq.appendChild(img);
+                }
+
+                sq.onclick = () => handleSqClick(r, c);
+                boardEl.appendChild(sq);
+            }
+        }
+        updateTimersUI();
+    }
+
+    function handleSqClick(r, c) {
+        if(gameOver || turn === 'black') return; // AI düşünürken veya oyun bittiyse engelle
+
+        const p = board[r][c];
+
+        // Eğer seçili bir taş varsa ve tıklanan yer geçerli bir hamleyse -> OYNA
+        if(selectedSq && legalMovesForSelected.some(m => m[0]===r && m[1]===c)) {
+            executeMove(selectedSq.r, selectedSq.c, r, c);
+            selectedSq = null; 
+            legalMovesForSelected = [];
+            
+            turn = 'black';
+            document.getElementById("status").textContent = "AI Düşünüyor...";
+            setTimeout(aiLogic, 600); // AI'ye düşünme payı ver
+        } 
+        // Kendi taşını seçerse
+        else if(p && p === p.toUpperCase()) {
+            selectedSq = {r, c};
+            legalMovesForSelected = getLegalMoves(r, c, board);
+        } 
+        // Boş yere veya rakibe basarsa seçimi kaldır
+        else {
+            selectedSq = null;
+            legalMovesForSelected = [];
+        }
+        render();
+    }
+
+    function executeMove(fr, fc, tr, tc) {
+        const p = board[fr][fc];
+        const target = board[tr][tc];
+
+        // Ses Efektleri
+        const tempBoard = JSON.parse(JSON.stringify(board));
+        tempBoard[tr][tc] = p; tempBoard[fr][fc] = '';
+        const isCheck = isInCheck(turn === 'white' ? 'black' : 'white', tempBoard);
+
+        if(isCheck) SOUNDS.check.play().catch(()=>{});
+        else if(target) SOUNDS.capture.play().catch(()=>{});
+        else SOUNDS.move.play().catch(()=>{});
+
+        // Notasyon ve Geçmiş
+        addNotation(fr, fc, tr, tc, p, target);
+        lastMove = {fr, fc, tr, tc};
+        history.push({fr, fc, tr, tc, p, target});
+
+        // Hamleyi işle
+        board[tr][tc] = p;
+        board[fr][fc] = '';
+
+        // Terfi (Piyon son kareye ulaşırsa Vezir olur)
+        if(p==='P' && tr===0) board[tr][tc]='Q';
+        if(p==='p' && tr===7) board[tr][tc]='q';
+
+        checkEnd();
+    }
+
+    // --- YAPAY ZEKA (AI) ---
+    function aiLogic() {
+        if(gameOver) return;
+        const depth = parseInt(document.getElementById("difficulty").value);
+        const best = minimaxRoot(depth, board, true); // true = black is maximizing
+        
+        if(best) {
+            executeMove(best.fr, best.fc, best.tr, best.tc);
+        }
+        turn = 'white';
+        document.getElementById("status").textContent = "Senin Sıran";
+        render();
+    }
+
+    function minimaxRoot(depth, game, isBlack) {
+        let moves = getAllMoves(isBlack ? 'black' : 'white', game);
+        if(moves.length === 0) return null;
+
+        let bestVal = isBlack ? -9999 : 9999;
+        let bestMove = moves[Math.floor(Math.random() * moves.length)];
+
+        for(let m of moves) {
+            // Hamleyi dene
+            let captured = game[m.tr][m.tc];
+            game[m.tr][m.tc] = game[m.fr][m.fc];
+            game[m.fr][m.fc] = '';
+
+            let val = minimax(depth - 1, game, -10000, 10000, !isBlack);
+
+            // Geri al
+            game[m.fr][m.fc] = game[m.tr][m.tc];
+            game[m.tr][m.tc] = captured;
+
+            if(isBlack) {
+                if(val > bestVal) { bestVal = val; bestMove = m; }
+            } else {
+                if(val < bestVal) { bestVal = val; bestMove = m; }
+            }
+        }
+        return bestMove;
+    }
+
+    function minimax(depth, game, alpha, beta, isMax) {
+        if(depth === 0) return -evaluate(game);
+
+        let moves = getAllMoves(isMax ? 'black' : 'white', game);
+        
+        if(isMax) {
+            let best = -9999;
+            for(let m of moves) {
+                let captured = game[m.tr][m.tc];
+                game[m.tr][m.tc] = game[m.fr][m.fc];
+                game[m.fr][m.fc] = '';
+                
+                best = Math.max(best, minimax(depth - 1, game, alpha, beta, false));
+                
+                game[m.fr][m.fc] = game[m.tr][m.tc];
+                game[m.tr][m.tc] = captured;
+                
+                alpha = Math.max(alpha, best);
+                if(beta <= alpha) return best;
+            }
+            return best;
+        } else {
+            let best = 9999;
+            for(let m of moves) {
+                let captured = game[m.tr][m.tc];
+                game[m.tr][m.tc] = game[m.fr][m.fc];
+                game[m.fr][m.fc] = '';
+                
+                best = Math.min(best, minimax(depth - 1, game, alpha, beta, true));
+                
+                game[m.fr][m.fc] = game[m.tr][m.tc];
+                game[m.tr][m.tc] = captured;
+                
+                beta = Math.min(beta, best);
+                if(beta <= alpha) return best;
+            }
+            return best;
+        }
+    }
+
+    function evaluate(b) {
+        let score = 0;
+        for(let r=0; r<8; r++) {
+            for(let c=0; c<8; c++) {
+                if(b[r][c]) {
+                    let v = VALUES[b[r][c].toLowerCase()];
+                    // Büyük harf (Beyaz) pozitif, Küçük harf (Siyah) negatif
+                    score += (b[r][c] === b[r][c].toUpperCase() ? v : -v);
+                }
+            }
+        }
+        return score;
+    }
+
+    // --- HAREKET MANTIĞI ---
+    function getBaseMoves(r, c, b) {
+        const p = b[r][c];
+        if(!p) return [];
+        
+        const isW = p === p.toUpperCase();
+        const type = p.toLowerCase();
+        const moves = [];
+        const dir = isW ? -1 : 1; // Beyaz yukarı (-), Siyah aşağı (+)
+
+        if(type === 'p') {
+            // İleri 1
+            if(b[r+dir] && !b[r+dir][c]) {
+                moves.push([r+dir, c]);
+                // İleri 2 (Başlangıçta)
+                if((isW ? r===6 : r===1) && b[r+dir][c]==='' && b[r+2*dir] && b[r+2*dir][c]==='') {
+                    moves.push([r+2*dir, c]);
+                }
+            }
+            // Çapraz Yeme
+            [-1, 1].forEach(dc => {
+                let target = b[r+dir]?.[c+dc];
+                if(target && (isW ? target === target.toLowerCase() : target === target.toUpperCase())) {
+                    moves.push([r+dir, c+dc]);
+                }
+            });
+        } else {
+            // Diğer Taşlar
+            const directions = 
+                type==='n' ? [[-2,-1],[-2,1],[2,-1],[2,1],[-1,-2],[-1,2],[1,-2],[1,2]] :
+                type==='b' ? [[1,1],[1,-1],[-1,1],[-1,-1]] :
+                type==='r' ? [[0,1],[0,-1],[1,0],[-1,0]] :
+                /* q or k */ [[1,1],[1,-1],[-1,1],[-1,-1],[0,1],[0,-1],[1,0],[-1,0]];
+            
+            directions.forEach(dr => {
+                let nr = r + dr[0], nc = c + dr[1];
+                while(nr>=0 && nr<8 && nc>=0 && nc<8) {
+                    let target = b[nr][nc];
+                    if(!target) {
+                        moves.push([nr, nc]);
+                        if(type === 'n' || type === 'k') break; // At ve Şah tek adım gider (tekrar etmez)
+                    } else {
+                        // Rakip taşı ise ye
+                        if(isW ? target === target.toLowerCase() : target === target.toUpperCase()) {
+                            moves.push([nr, nc]);
+                        }
+                        break; // Kendi taşı veya rakip taşı görünce dur
+                    }
+                    if(type === 'n' || type === 'k') break;
+                    nr += dr[0]; nc += dr[1];
+                }
+            });
+        }
+        return moves;
+    }
+
+    function getLegalMoves(r, c, b) {
+        const isW = b[r][c] === b[r][c].toUpperCase();
+        const potential = getBaseMoves(r, c, b);
+        
+        // Şahı tehlikeye atan hamleleri filtrele
+        return potential.filter(mv => {
+            let captured = b[mv[0]][mv[1]];
+            let source = b[r][c];
+            
+            b[mv[0]][mv[1]] = source;
+            b[r][c] = '';
+            
+            let chk = isInCheck(isW ? 'white' : 'black', b);
+            
+            // Geri Al
+            b[r][c] = source;
+            b[mv[0]][mv[1]] = captured;
+            
+            return !chk;
+        });
+    }
+
+    function isInCheck(color, b) {
+        let kr, kc, kChar = color==='white' ? 'K' : 'k';
+        // Şahı bul
+        for(let r=0; r<8; r++) for(let c=0; c<8; c++) if(b[r][c]===kChar){ kr=r; kc=c; }
+        if(kr===undefined) return false; // Şah yoksa (hata durumu)
+
+        // Rakip taşlar şahı yiyebiliyor mu?
+        for(let r=0; r<8; r++) {
+            for(let c=0; c<8; c++) {
+                let p = b[r][c];
+                if(p && (color==='white' ? p===p.toLowerCase() : p===p.toUpperCase())) {
+                    if(getBaseMoves(r, c, b).some(m => m[0]===kr && m[1]===kc)) return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    function getAllMoves(color, b) {
+        let moves = [];
+        for(let r=0; r<8; r++) {
+            for(let c=0; c<8; c++) {
+                if(b[r][c] && (color==='white' ? b[r][c]===b[r][c].toUpperCase() : b[r][c]===b[r][c].toLowerCase())) {
+                    getLegalMoves(r, c, b).forEach(m => moves.push({fr:r, fc:c, tr:m[0], tc:m[1]}));
+                }
+            }
+        }
+        return moves;
+    }
+
+    // --- YARDIMCI FONKSİYONLAR ---
+    function startTimer() {
+        clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+            if(gameOver) return;
+            timers[turn]--;
+            updateTimersUI();
+            if(timers[turn] <= 0) {
+                gameOver = true;
+                document.getElementById("status").textContent = "SÜRE BİTTİ!";
+            }
+        }, 1000);
+    }
+
+    function updateTimersUI() {
+        ['white', 'black'].forEach(c => {
+            const el = document.getElementById('timer-' + c);
+            const m = Math.floor(timers[c] / 60);
+            const s = timers[c] % 60;
+            if(el) {
+                el.textContent = `${m}:${s < 10 ? '0'+s : s}`;
+                el.className = `timer ${turn === c ? 'active' : ''}`;
+            }
+        });
+    }
+
+    function checkEnd() {
+        let next = turn === 'white' ? 'black' : 'white';
+        if(getAllMoves(next, board).length === 0) {
+            gameOver = true;
+            document.getElementById("status").textContent = isInCheck(next, board) ? "ŞAH MAT!" : "PAT!";
+        }
+    }
+
+    function addNotation(fr, fc, tr, tc, p, target) {
+        const cols = 'abcdefgh', rows = '87654321';
+        const not = `${p.toUpperCase()!=='P' ? p.toUpperCase() : ''}${target ? 'x' : ''}${cols[tc]}${rows[tr]}`;
+        const list = document.getElementById("notation-list");
+        
+        if(turn === 'white') {
+            const r = document.createElement("div");
+            r.className = "notation-row";
+            r.innerHTML = `<b>${Math.floor(history.length/2)+1}.</b><span>${not}</span><span></span>`;
+            list.appendChild(r);
+        } else if(list.lastChild) {
+            list.lastChild.querySelectorAll("span")[1].textContent = not;
+        }
+        list.scrollTop = list.scrollHeight;
+    }
+
+    function getHint() {
+        if(gameOver || turn !== 'white') return;
+        const best = minimaxRoot(3, board, false);
+        if(best) {
+            legalMovesForSelected = [[best.tr, best.tc]];
+            selectedSq = {r: best.fr, c: best.fc};
+            render();
+        }
+    }
+
+    function aiAutoPlay() {
+        if(!gameOver && turn === 'white') {
+            const best = minimaxRoot(3, board, false);
+            if(best) {
+                executeMove(best.fr, best.fc, best.tr, best.tc);
+                turn = 'black';
+                render();
+                setTimeout(aiLogic, 600);
+            }
+        }
+    }
+
+    function undo() {
+        if(history.length < 2) return;
+        for(let i=0; i<2; i++) {
+            let m = history.pop();
+            board[m.fr][m.fc] = m.p;
+            board[m.tr][m.tc] = m.target;
+        }
+        const list = document.getElementById("notation-list");
+        if(list.lastChild) list.removeChild(list.lastChild);
+        
+        turn = 'white';
+        gameOver = false;
+        lastMove = null;
+        legalMovesForSelected = [];
+        render();
+    }
+
+    function resetGame() {
+        if(confirm("Yeni oyun başlatılsın mı?")) init();
+    }
+</script>
+</body>
+</html>

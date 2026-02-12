@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Bulmaca</title>
+<style>
+    :root { --bg: #f0f2f5; --primary: #8e44ad; --text: #2c3e50; --white: #ffffff; }
+    body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; height: 100vh; overflow: hidden; user-select: none; }
+    .header { background: var(--primary); color: white; width: 100%; padding: 15px 0; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; }
+    .header h1 { margin: 0 0 0 20px; font-size: 1.2rem; }
+    .score-board { margin-right: 20px; font-weight: bold; background: rgba(0,0,0,0.2); padding: 5px 10px; border-radius: 8px;}
+    .game-container { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; max-width: 600px; padding: 10px; box-sizing: border-box; }
+    .soru-sayi { font-size: 0.9rem; color: #7f8c8d; margin-bottom: 5px; }
+    .soru { font-size: 1.1rem; font-weight: bold; text-align: center; margin-bottom: 20px; min-height: 60px; display: flex; align-items: center; justify-content: center; }
+    .harf-container { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; margin-bottom: 10px; }
+    .harf-container span { width: 35px; height: 35px; border-bottom: 3px solid var(--primary); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: bold; text-transform: uppercase; color: var(--text); background: white; border-radius: 4px 4px 0 0;}
+    .harf-container span.colorful { color: var(--primary); border-color: #27ae60; background: #e8f8f5; animation: pop 0.3s ease; }
+    @keyframes pop { 0% {transform: scale(0.5);} 100% {transform: scale(1);} }
+    .cevap { font-size: 1.5rem; font-weight: bold; letter-spacing: 5px; color: var(--primary); min-height: 40px; margin-top: 10px; border-bottom: 1px dashed #ccc; padding: 0 10px; }
+    .bottom-panel { width: 100%; background: var(--white); border-top-left-radius: 20px; border-top-right-radius: 20px; padding: 15px 10px; box-shadow: 0 -5px 15px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 10px; box-sizing: border-box; flex-shrink: 0; }
+    .top-buttons, .bottom-buttons { display: flex; gap: 10px; justify-content: center; }
+    button { padding: 10px 15px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: transform 0.1s; color: white; font-size: 0.9rem; }
+    button:active { transform: scale(0.95); }
+    #yeni { background: #34495e; } #ipucu { background: #f1c40f; color: #333; } #bilemedim { background: #e74c3c; } #sil { background: #95a5a6; flex: 1; } #onay { background: #27ae60; flex: 1; }
+    .keyboard-container { display: flex; flex-direction: column; gap: 5px; width: 100%; max-width: 500px; margin: 0 auto; }
+    .key-row { display: flex; justify-content: center; gap: 3px; }
+    .key-row div { background: #ecf0f1; color: #2c3e50; padding: 12px 0; flex: 1; text-align: center; border-radius: 5px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 0 #bdc3c7; user-select: none; font-size: 1.1em; }
+    .key-row div:active { transform: translateY(2px); box-shadow: none; }
+    #confetti { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; overflow: hidden; z-index: 9999; }
+    .confetti-piece { position: absolute; width: 10px; height: 10px; animation: fall linear forwards; }
+    @keyframes fall { to { transform: translateY(100vh) rotate(720deg); } }
+</style>
+</head>
+<body>
+<div class="header"><h1>Bulmaca</h1><div class="score-board">Skor: <span id="skor">100</span></div></div>
+<div class="game-container"><div class="soru-sayi" id="soru-sayi"></div><div class="soru" id="soru">Yükleniyor...</div><div class="harf-container" id="harf-container"></div><div class="cevap" id="cevap"></div></div>
+<div class="bottom-panel">
+  <div class="top-buttons"><button id="yeni">🔄 Yeni</button><button id="ipucu">💡 İpucu</button><button id="bilemedim">❓ Pas</button></div>
+  <div class="keyboard-container">
+    <div class="key-row"><div>Q</div><div>W</div><div>E</div><div>R</div><div>T</div><div>Y</div><div>U</div><div>I</div><div>O</div><div>P</div><div>Ğ</div><div>Ü</div></div>
+    <div class="key-row"><div>A</div><div>S</div><div>D</div><div>F</div><div>G</div><div>H</div><div>J</div><div>K</div><div>L</div><div>Ş</div><div>İ</div></div>
+    <div class="key-row"><div>Z</div><div>X</div><div>C</div><div>V</div><div>B</div><div>N</div><div>M</div><div>Ö</div><div>Ç</div></div>
+  </div>
+  <div class="bottom-buttons"><button id="sil">⌫ SİL</button><button id="onay">✓ ONAYLA</button></div>
+</div>
+<div id="confetti"></div>
+
+<script src="data.js"></script>
+
+<script>
+// --- VERİ İŞLEME VE OYUN MANTIĞI ---
+let oyunHavuzu = [];
+let skor=100, current, soruIndex=0, dogruUstUste=0, ipucuKullanildi=0;
+const soruEl=document.getElementById('soru'), soruSayiEl=document.getElementById('soru-sayi'), harfContainer=document.getElementById('harf-container'), cevapEl=document.getElementById('cevap');
+const ses={dogru:new Audio('assets/sound/clap.mp3'), yanlis:new Audio('assets/sound/wrong.mp3')};
+
+// Sayfa yüklendiğinde veriyi işle
+window.onload = function() {
+    hazirlaVeBaslat();
+};
+
+function hazirlaVeBaslat() {
+    if(typeof bulmacaData === 'undefined') {
+        soruEl.innerText = "Hata: data.js bulunamadı!";
+        return;
+    }
+
+    // Virgüllü cevapları ayırıp havuza ekle
+    oyunHavuzu = [];
+    bulmacaData.forEach(item => {
+        // Virgülle ayır
+        let cevaplar = item.cevap.split(',');
+        
+        cevaplar.forEach(tekCevap => {
+            let temizCevap = tekCevap.trim();
+            if(temizCevap.length > 0) {
+                oyunHavuzu.push({
+                    soru: item.soru,
+                    cevap: temizCevap
+                });
+            }
+        });
+    });
+
+    // Havuzu karıştır (Shuffle)
+    oyunHavuzu.sort(() => Math.random() - 0.5);
+    
+    yeniOyun();
+}
+
+function yeniOyun(){
+    // Havuz biterse baştan karıştır
+    if(soruIndex >= oyunHavuzu.length) {
+        soruIndex = 0;
+        oyunHavuzu.sort(() => Math.random() - 0.5);
+    }
+
+    current = oyunHavuzu[soruIndex];
+    ipucuKullanildi = 0;
+    
+    soruSayiEl.textContent = `Soru #${soruIndex + 1}`;
+    soruEl.textContent = current.soru;
+
+    harfContainer.innerHTML = '';
+    
+    // Cevap uzunluğu kadar kutu oluştur
+    let harfler = current.cevap.split('');
+    harfler.forEach(h => {
+        const s = document.createElement('span');
+        // Boşluk karakteri varsa tire, yoksa alt çizgi görünümü (CSS ile border-bottom)
+        if (h === ' ') {
+            s.style.borderBottom = "none";
+            s.textContent = "-";
+        } else {
+            s.textContent = "_";
+        }
+        harfContainer.appendChild(s);
+    });
+    
+    cevapEl.textContent = '';
+}
+
+function tahmin(){
+    const dogru = current.cevap.toLocaleUpperCase('tr-TR');
+    const girilen = cevapEl.textContent.toLocaleUpperCase('tr-TR');
+
+    if(girilen === dogru){
+        const spans = harfContainer.querySelectorAll('span');
+        dogru.split('').forEach((h, i)=>{
+            spans[i].textContent = h;
+            spans[i].classList.add('colorful');
+        });
+        
+        skor += 100 - (ipucuKullanildi * 10);
+        dogruUstUste++;
+        ses.dogru.play().catch(()=>{});
+        
+        if(dogruUstUste >= 3){ konfeti(); dogruUstUste=0; }
+        
+        document.getElementById('skor').textContent = skor;
+        
+        setTimeout(()=>{ 
+            soruIndex++;
+            yeniOyun(); 
+        }, 1500);
+    } else {
+        skor -= 10;
+        dogruUstUste = 0;
+        ses.yanlis.play().catch(()=>{});
+        document.getElementById('skor').textContent = skor;
+        
+        cevapEl.style.color = "red";
+        setTimeout(() => cevapEl.style.color = "var(--primary)", 500);
+    }
+}
+
+// Buton Olayları
+document.getElementById('bilemedim').addEventListener('click', () => {
+    const dogru = current.cevap.toLocaleUpperCase('tr-TR');
+    const spans = harfContainer.querySelectorAll('span');
+    dogru.split('').forEach((h, i) => {
+        spans[i].textContent = h;
+        spans[i].style.color = '#e74c3c';
+    });
+    skor -= 50;
+    if(skor < 0) skor = 0;
+    document.getElementById('skor').textContent = skor;
+    
+    setTimeout(() => { 
+        soruIndex++;
+        yeniOyun(); 
+    }, 2000);
+});
+
+document.getElementById('yeni').addEventListener('click', () => {
+    skor -= 20; // Pas geçme cezası
+    document.getElementById('skor').textContent = skor;
+    soruIndex++;
+    yeniOyun();
+});
+
+document.getElementById('ipucu').addEventListener('click', () => {
+    const dogru = current.cevap.toLocaleUpperCase('tr-TR');
+    const spans = harfContainer.querySelectorAll('span');
+    let gizliIndexler = [];
+    
+    dogru.split('').forEach((h, i) => {
+        // Henüz açılmamış ve boşluk olmayan harfleri bul
+        if((spans[i].textContent === '_' || spans[i].textContent === '') && h !== ' ') {
+            gizliIndexler.push(i);
+        }
+    });
+
+    if(gizliIndexler.length === 0) return;
+
+    ipucuKullanildi++;
+    skor -= 20;
+    
+    const r = gizliIndexler[Math.floor(Math.random() * gizliIndexler.length)];
+    spans[r].textContent = dogru[r];
+    spans[r].style.color = "#f39c12"; // İpucu rengi
+    
+    document.getElementById('skor').textContent = skor;
+});
+
+// Klavye Olayları
+document.querySelectorAll('.key-row div').forEach(k => {
+    k.addEventListener('click', () => {
+        // Sadece harf boşlukları kadar yazmaya izin ver (boşluklar hariç)
+        // Basitlik için sınırsız bırakıp görselde kontrol ediyoruz
+        cevapEl.textContent += k.textContent;
+    });
+});
+
+document.getElementById('sil').addEventListener('click', () => {
+    cevapEl.textContent = cevapEl.textContent.slice(0, -1);
+});
+
+document.getElementById('onay').addEventListener('click', tahmin);
+
+function konfeti(){
+    const c = document.getElementById('confetti');
+    for(let i=0; i<50; i++){
+        const p = document.createElement('div');
+        p.className = 'confetti-piece';
+        p.style.backgroundColor = `hsl(${Math.random()*360},100%,50%)`;
+        p.style.left = Math.random()*100+'vw';
+        p.style.animationDuration = (Math.random()*2+1)+'s';
+        c.appendChild(p);
+        setTimeout(()=>p.remove(), 3000);
+    }
+}
+</script>
+</body>
+</html>

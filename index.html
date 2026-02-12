@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <link rel="manifest" href="manifest.json">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta charset="UTF-8">
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Alptekin">
+    <link rel="apple-touch-icon" href="icon.png"> <title>Alptekin Pro 2026</title>
+    
+    <script src="libs/tesseract.min.js"></script>
+    <link rel="stylesheet" href="libs/cropper.min.css">
+    <script src="libs/cropper.min.js"></script>
+    
+    <style>
+        /* TEMA VE TASARIM - KORUNDU */
+        :root {
+            --safe-top: env(safe-area-inset-top, 20px);
+            --safe-bottom: env(safe-area-inset-bottom, 20px);
+            --primary: #2563eb; 
+            --bg: #f8fafc; --card: #ffffff; --text: #1e293b; --tab-bg: #e2e8f0;
+            --success: #10b981; --error: #ef4444; --warning: #f59e0b;
+        }
+
+        body.theme-green { --primary: #10b981; }
+        body.theme-brown { --primary: #d97706; }
+        body.theme-black { --primary: #1e293b; }
+        body.theme-blue  { --primary: #2563eb; }
+
+        html, body {
+            height: 100%;
+            overflow: hidden; 
+            margin: 0; padding: 0;
+            font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; 
+            background: var(--bg); color: var(--text); 
+            transition: 0.3s;
+        }
+
+        #splash {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #0f172a; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 9999;
+            transition: opacity 0.8s ease-out; overflow: hidden;
+        }
+        .splash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .s-box { width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; font-weight: 900; border-radius: 12px; color: white; font-size: 1.2em; animation: box-spin 1.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; opacity: 0; }
+        .it { background: #008c45; transform: translate(-200px, -200px) rotate(-180deg); }
+        .es { background: #ffbb00; transform: translate(200px, -200px) rotate(180deg); animation-delay: 0.2s; }
+        .fr { background: #0055a4; transform: translate(-200px, 200px) rotate(-180deg); animation-delay: 0.4s; }
+        .de { background: #000000; transform: translate(200px, 200px) rotate(180deg); animation-delay: 0.6s; }
+        @keyframes box-spin { to { transform: translate(0,0) rotate(0); opacity: 1; } }
+
+        .tr-en-wrap { display: flex; gap: 15px; font-size: 2em; font-weight: 900; margin-top: 10px; }
+        .tr { color: #3b82f6; animation: slideRight 1s forwards; opacity: 0; }
+        .en { color: #ef4444; animation: slideLeft 1s forwards; opacity: 0; }
+        @keyframes slideRight { from {transform: translateX(-100px); opacity: 0;} to {transform: translateX(0); opacity: 1;} }
+        @keyframes slideLeft { from {transform: translateX(100px); opacity: 0;} to {transform: translateX(0); opacity: 1;} }
+
+        .splash-sub { color: white; margin-top: 25px; letter-spacing: 2px; font-weight: bold; }
+        .particles { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-left: 5px; animation: blink 1s infinite; }
+        @keyframes blink { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; box-shadow: 0 0 10px var(--primary); } }
+
+        .container { 
+            max-width: 550px; 
+            width: 100%; 
+            margin: 0 auto; 
+            height: 100%; 
+            display: flex;
+            flex-direction: column; 
+        }
+
+        /* --- HEADER DÜZENLEMESİ --- */
+        .header { 
+            padding: 0 20px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-top: calc(var(--safe-top) + 10px); 
+            flex-shrink: 0; 
+        }
+
+        /* Sol Üst Kontrol Grubu (Temalar + Oyunlar) */
+        .top-left-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .theme-dot { width: 20px; height: 20px; border-radius: 50%; border: 2px solid white; cursor: pointer; }
+        
+        /* OYUN BUTONLARI STİLİ */
+        .game-btn {
+            width: 24px; height: 24px; 
+            border-radius: 50%; 
+            color: white; 
+            font-weight: 900; 
+            font-size: 13px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            font-family: monospace;
+        }
+        .btn-chess { background: #1e293b; } /* Koyu Gri */
+        .btn-sudoku { background: #ea580c; } /* Turuncu */
+        .btn-bulmaca { background: #8e44ad; } /* Mor - YENİ */
+
+        /* --- KONTROLLER --- */
+        .controls-row {
+            display: flex;
+            gap: 10px;
+            padding: 0 5%;
+            margin-top: 15px;
+            flex-shrink: 0;
+        }
+
+        .lang-selector { 
+            flex: 1; 
+            width: 100%; 
+            padding: 10px; 
+            border-radius: 12px; 
+            border: 2px solid var(--primary); 
+            background: var(--card); 
+            font-weight: bold; 
+            font-size: 0.85em; 
+            outline: none; 
+            box-sizing: border-box; 
+            text-overflow: ellipsis;
+        }
+        
+        .tabs { display: flex; gap: 5px; margin: 10px 5%; background: var(--tab-bg); padding: 5px; border-radius: 16px; flex-shrink: 0; }
+        .tabs button { flex: 1; padding: 12px 2px; border: none; border-radius: 12px; background: transparent; font-weight: 700; color: var(--text); font-size: 0.70em; transition: 0.2s; white-space: nowrap; }
+        .tabs button.active { background: var(--card); color: var(--primary); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        button:active { filter: brightness(1.2); transform: scale(0.96); }
+
+        .content-area { 
+            padding: 0 5%; 
+            width: 90%; 
+            flex: 1; 
+            overflow: hidden; 
+            position: relative;
+            padding-bottom: 20px;
+        }
+
+        .card { 
+            background: var(--card); 
+            padding: 20px 15px; 
+            border-radius: 24px; 
+            text-align: center; 
+            display: none; 
+            border: 2px solid var(--primary); 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05); 
+            box-sizing: border-box; 
+            width: 100%;
+            height: 100%; 
+            overflow-y: auto; 
+        }
+        
+        .active-area { display: block; animation: slideUp 0.4s ease; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+
+        #searchInput { width: 100%; padding: 12px; border-radius: 12px; border: 2px solid var(--primary); font-size: 14px; outline: none; margin-bottom: 10px; box-sizing: border-box; position: sticky; top: 0; z-index: 10; background: var(--card); }
+        
+        textarea, .translate-box { width: 100%; height: 150px; border-radius: 18px; border: 2px solid var(--tab-bg); padding: 15px; font-size: 16px; outline: none; resize: none; box-sizing: border-box; overflow-y: auto; background: #fff; text-align: left; }
+        .translate-box { background: #f1f5f9; border: 1px dashed var(--primary); margin-top: 10px; }
+
+        .speed-control { margin: 10px 0; display: flex; align-items: center; gap: 10px; font-size: 0.8em; font-weight: bold; color: var(--primary); }
+        input[type=range] { flex: 1; accent-color: var(--primary); }
+
+        .btn-action { background: var(--primary); color: white; border: none; border-radius: 12px; padding: 12px 2px; font-size: 0.85em; font-weight: 900; width: 100%; cursor: pointer; transition: 0.3s; }
+        
+        .btn-disabled { background: #cbd5e1 !important; color: #94a3b8 !important; cursor: not-allowed; pointer-events: none; }
+        .btn-active-next { background: #bbf7d0 !important; color: #166534 !important; border: 2px solid #86efac !important; cursor: pointer; animation: popIn 0.3s ease; }
+        @keyframes popIn { 0% { transform: scale(0.9); } 100% { transform: scale(1); } }
+
+        .mic-circle { width: 85px; height: 85px; border-radius: 50%; border: none; background: var(--primary); color: white; font-size: 2.2em; margin: 15px 0; display: inline-block; }
+        .recording { background: var(--error) !important; animation: pulse 1.5s infinite; }
+        .phrase-box { font-size: 1.6em; font-weight: 800; color: var(--primary); margin-bottom: 5px; }
+        .dict-item { background: var(--card); padding: 15px; border-radius: 18px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border-left: 6px solid var(--primary); text-align: left; }
+
+        .success-zone { min-height: 50px; margin: 10px 0; display: flex; align-items: center; justify-content: center; font-size: 1.2em; font-weight: bold; color: var(--text); transition: 0.3s; padding: 5px; text-align: center; }
+        
+        #ocr-status { margin-top: 10px; font-size: 0.9em; color: var(--primary); font-weight: bold; min-height: 20px; }
+        
+        #feedback-pop { display: none !important; }
+
+        /* --- OYUN OVERLAY (KATMAN) --- */
+        #game-overlay {
+            display: none;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #121212;
+            z-index: 99999;
+        }
+        #game-frame {
+            width: 100%; height: 100%; border: none;
+        }
+        #close-game-btn {
+            position: absolute;
+            top: calc(var(--safe-top) + 15px);
+            right: 15px;
+            width: 40px; height: 40px;
+            border-radius: 50%;
+            background: #ef4444;
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            z-index: 100000;
+            border: 2px solid white;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+
+        /* --- ARAÇLAR SEKME DÜZENİ (FLEXBOX) --- */
+        /* HATA DÜZELTİLDİ: Sadece aktifken flex olsun, yoksa gizli kalsın */
+        #tools-area.active-area {
+            display: flex; 
+            flex-direction: column;
+            height: 100%;
+            padding-bottom: 5px;
+        }
+
+        #toolsInput {
+            flex: 1; 
+            width: 100%;
+            margin-bottom: 10px;
+            resize: none;
+            height: auto;
+        }
+
+        .tools-footer {
+            flex-shrink: 0;
+            margin-top: auto;
+            background: var(--card);
+            z-index: 10;
+        }
+
+    </style>
+</head>
+<body class="theme-blue" onclick="wakeupTTS()">
+
+<div id="splash">
+    <div class="splash-grid">
+        <div class="s-box it">IT</div>
+        <div class="s-box es">ES</div>
+        <div class="s-box fr">FR</div>
+        <div class="s-box de">DE</div>
+    </div>
+    <div class="tr-en-wrap">
+        <span class="tr">TR</span> <span class="en">EN</span>
+    </div>
+    <div class="splash-sub">ALPTEKİN ASİSTAN PRO 
+        <span class="particles" style="background:#3b82f6;"></span>
+        <span class="particles" style="background:#ef4444;"></span>
+        <span class="particles" style="background:#10b981;"></span>
+    </div>
+    <div class="copyright">copyright by @lptekin2026</div>
+</div>
+
+<div class="container">
+    
+    <div class="header">
+        <div class="top-left-controls">
+            <div class="theme-dot" style="background:#2563eb" onclick="setTheme('theme-blue')"></div>
+            <div class="theme-dot" style="background:#10b981" onclick="setTheme('theme-green')"></div>
+            <div class="theme-dot" style="background:#d97706" onclick="setTheme('theme-brown')"></div>
+            <div class="theme-dot" style="background:#1e293b" onclick="setTheme('theme-black')"></div>
+            
+            <div class="game-btn btn-chess" onclick="openGame('chess')">G</div>
+            <div class="game-btn btn-sudoku" onclick="openGame('sudoku')">S</div>
+            <div class="game-btn btn-bulmaca" onclick="openGame('bulmaca')">B</div>
+            <div class="game-btn" style="background:#facc15; color:#000;" onclick="openGame('firebase')">F</div>
+        </div>
+        
+        <h2 style="margin:0; font-weight: 900; font-size:1.1em;">Alptekin Asistan<span style="color:var(--primary)">.</span></h2>
+    </div>
+
+    <div class="controls-row">
+        <select class="lang-selector" id="langPair" onchange="initApp(true)">
+            <option value="tr-en">Türkçe → İngilizce</option>
+            <option value="en-tr">İngilizce → Türkçe</option>
+            <option value="tr-de">Türkçe → Almanca</option>
+            <option value="de-tr">Almanca → Türkçe</option>
+            <option value="tr-fr">Türkçe → Fransızca</option>
+            <option value="fr-tr">Fransızca → Türkçe</option>
+            <option value="tr-it">Türkçe → İtalyanca</option>
+            <option value="it-tr">İtalyanca → Türkçe</option>
+            <option value="tr-es">Türkçe → İspanyolca</option>
+            <option value="es-tr">İspanyolca → Türkçe</option>
+            <option value="tr-ja">Türkçe → Japonca</option>
+            <option value="ja-tr">Japonca → Türkçe</option>
+            <option value="tr-ru">Türkçe → Rusça</option>
+            <option value="ru-tr">Rusça → Türkçe</option>
+            <option value="tr-ar">Türkçe → Arapça</option>
+            <option value="ar-tr">Arapça → Türkçe</option>
+            <option value="tr-el">Türkçe → Yunanca</option>
+            <option value="el-tr">Yunanca → Türkçe</option>
+        </select>
+
+        <select class="lang-selector" id="categorySelect" onchange="updateCategory()">
+            <option value="all">📂 Tümü</option>
+        </select>
+    </div>
+
+    <div class="tabs">
+        <button id="tab-dict" class="active" onclick="showTab('dict')">SÖZLÜK</button>
+        <button id="tab-game" onclick="showTab('game')">OYUN</button>
+        <button id="tab-speech" onclick="showTab('speech')">TELAFFUZ</button>
+        <button id="tab-tools" onclick="showTab('tools')">ARAÇLAR</button>
+        <button id="tab-tts" onclick="showTab('tts')">SESLENDİR</button>
+    </div>
+
+    <div class="content-area">
+        <div id="dict-area" class="card active-area" style="background:transparent; border:none; box-shadow:none; padding:0;">
+            <input type="text" id="searchInput" placeholder="Ara..." onkeyup="renderDict()">
+            <div id="dictionaryList"></div>
+        </div>
+
+        <div id="game-area" class="card">
+            <div id="gameQuestion" class="phrase-box">...</div>
+            <button class="btn-action" style="width:180px; margin: 10px auto;" onclick="speakItem(window.activeGameItem, 'answer')">🔊 Telaffuzu Dinle</button>
+            <div id="gameSuccessZone" class="success-zone"></div>
+            <div id="optionsGrid" style="margin-top:15px; display:grid; gap:8px;"></div>
+            <button id="nextGameBtn" class="btn-action btn-disabled" style="margin-top:15px; font-size:1em;" onclick="nextGame()">Yeni Soru ➔</button>
+        </div>
+
+        <div id="speech-area" class="card">
+            <div id="speechTarget" class="phrase-box">...</div>
+            <button class="mic-circle" id="micBtn" onclick="toggleRecognition()">🎤</button>
+            <button class="btn-action" style="width:180px; margin: 10px auto; display:block;" onclick="speakItem(window.activeSpeechItem, 'answer')">🔊 Telaffuzu Dinle</button>
+            <div id="speechSuccessZone" class="success-zone"></div>
+            <div id="speechStatus" style="margin-top:5px;">Konuşmak için basın</div>
+            <button id="nextSpeechBtn" class="btn-action" style="background:var(--success); margin-top:15px; display:none; font-size:1em;" onclick="nextSpeech()">Yeni Telaffuz ➔</button>
+        </div>
+
+        <div id="tools-area" class="card">
+            <div class="phrase-box" style="font-size:1.2em; flex-shrink:0;">Ses & Fotoğraf Araçları</div>
+            
+            <textarea id="toolsInput" placeholder="Mikrofonla konuşun veya resim yükleyerek metni tarayın..."></textarea>
+            
+            <div id="ocr-status" style="flex-shrink:0; min-height:20px; font-weight:bold; color:#2563eb; margin-bottom:5px;"></div>
+
+            <div class="tools-footer">
+                
+                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:5px; margin-bottom:10px;">
+                    <button class="btn-action" onclick="startToolsDictation()">🎤 Dikte</button>
+                    <button class="btn-action" style="background:#d97706" onclick="document.getElementById('cameraInput').click()">📷 Çek</button>
+                    <button class="btn-action" style="background:#0284c7" onclick="document.getElementById('galleryInput').click()">🖼️ Seç</button>
+                </div>
+
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px;">
+                    <button class="btn-action" style="background:#10b981;" onclick="transferToTTS()">📝 Metni Çeviriye Gönder</button>
+                    <button class="btn-action" style="background:#64748b" onclick="document.getElementById('toolsInput').value = ''; document.getElementById('ocr-status').innerText='';">Temizle</button>
+                </div>
+
+                <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none" onchange="processAndRunOCR(this)">
+                <input type="file" id="galleryInput" accept="image/*" style="display:none" onchange="processAndRunOCR(this)">
+                
+                <canvas id="ocrCanvas" style="display:none;"></canvas>
+            </div>
+        </div>
+
+        <div id="tts-area" class="card">
+            <textarea id="ttsInput" placeholder="Metni buraya yazın veya hikaye seçin..."></textarea>
+            <div class="speed-control">
+                <span>Hız:</span>
+                <input type="range" id="speechRate" min="0.5" max="2.0" step="0.1" value="1.0" oninput="document.getElementById('rateVal').innerText = this.value + 'x'">
+                <span id="rateVal">1.0x</span>
+            </div>
+            <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 5px;">
+                <button class="btn-action" onclick="speakManual('source')">OKU</button>
+                <button class="btn-action" onclick="translateText()">ÇEVİR</button>
+                <button id="pauseBtn" class="btn-action" onclick="togglePauseResume()">DURDUR</button>
+                <button class="btn-action" style="background:#64748b" onclick="clearTTS()">TEMİZLE</button>
+            </div>
+            <div id="translatedResult" class="translate-box"></div>
+            <button id="speakResultBtn" class="btn-action" style="margin-top:10px; display:none;" onclick="speakManual('target')">🔊 Çeviriyi Seslendir</button>
+            <div id="storyList" style="max-height:160px; overflow-y:auto; margin-top:15px; border-top:1px solid #eee;"></div>
+        </div>
+    </div>
+</div>
+
+<div id="game-overlay">
+    <div id="close-game-btn" onclick="closeGame()">X</div>
+    <iframe id="game-frame" src="about:blank"></iframe>
+</div>
+
+<div id="crop-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:999999; flex-direction:column;">
+    <div style="flex:1; overflow:hidden; position:relative; background:#111;">
+        <img id="image-to-crop" style="max-width:100%; display:block;">
+    </div>
+
+    <div style="height:80px; background:#1e293b; display:flex; align-items:center; justify-content:space-between; padding:0 20px; flex-shrink:0;">
+        <button onclick="closeCropper()" style="background:#ef4444; color:white; border:none; padding:10px 15px; border-radius:8px; font-weight:bold;">İptal</button>
+        
+        <div style="display:flex; gap:15px;">
+            <button onclick="rotateImage(-90)" style="background:#3b82f6; color:white; border:none; width:40px; height:40px; border-radius:50%; font-size:1.2em;">↺</button>
+            <button onclick="rotateImage(90)" style="background:#3b82f6; color:white; border:none; width:40px; height:40px; border-radius:50%; font-size:1.2em;">↻</button>
+        </div>
+
+        <button onclick="finishCrop()" style="background:#10b981; color:white; border:none; padding:10px 20px; border-radius:8px; font-weight:bold;">TARA ✅</button>
+    </div>
+</div>
+
+<script src="categories.js"></script>
+<script src="dictionary.js"></script>
+<script src="hikayedata.js"></script>
+<script src="data.js"></script>
+
+<script>
+    const VOICE_MAP = { 'tr': 'tr-TR', 'en': 'en-US', 'de': 'de-DE', 'fr': 'fr-FR', 'it': 'it-IT', 'es': 'es-ES', 'ja': 'ja-JP','ru': 'ru-RU','ar': 'ar','el': 'el-GR' };
+    const TEBRİKLER = ["HARİKA!", "SÜPERSİN!", "MÜKEMMEL!", "BÖYLE DEVAM!", "MUHTEŞEM!", "BRAVO!"];
+    const HAPPY_EMOJIS = ["🎉", "🥳", "🎈", "🌟", "👏", "💖", "🦄", "🌈", "🎊"];
+    const SAD_EMOJIS = ["😔", "😣", "❌", "💭", "🌧️", "💔", "🥀"];
+
+    let currentActiveTab = 'dict';
+    let recognition, isRecording = false;
+    let isSpeakingGlobal = false; 
+    let currentSpeechChunks = []; 
+    let currentChunkIndex = 0;
+    var sentences = []; 
+
+    function setTheme(t) { document.body.className = t; localStorage.setItem('alptekin-theme', t); }
+    setTheme(localStorage.getItem('alptekin-theme') || 'theme-blue');
+
+    window.addEventListener('load', () => {
+        setTimeout(() => {
+            const splash = document.getElementById('splash');
+            splash.style.opacity = '0';
+            setTimeout(() => splash.style.display = 'none', 800);
+        }, 3000);
+        sentences = [...fullDictionary];
+        renderCategoryOptions();
+        initApp();
+    });
+
+
+
+    function openGame(type) {
+        const overlay = document.getElementById('game-overlay');
+        const frame = document.getElementById('game-frame');
+        if(type === 'chess') frame.src = "chess.html";
+        if(type === 'sudoku') frame.src = "sudoku.html";
+        if(type === 'bulmaca') frame.src = "bulmaca.html";
+        else if(type === 'firebase') frame.src = "https://chess-d0f06.firebaseapp.com/"; // Yeni sitemiz
+        overlay.style.display = 'block';
+    }
+
+    function closeGame() {
+        const overlay = document.getElementById('game-overlay');
+        const frame = document.getElementById('game-frame');
+        overlay.style.display = 'none';
+        frame.src = "about:blank";
+    }
+
+    function renderCategoryOptions() {
+        const select = document.getElementById('categorySelect');
+        const currentVal = select.value;
+        const pair = document.getElementById('langPair').value.split('-');
+        const sourceLang = pair[0] === 'de' ? 'alm' : pair[0]; 
+        select.innerHTML = '';
+        const allOpt = document.createElement('option');
+        allOpt.value = 'all';
+        allOpt.innerText = `📂 Tümü (${fullDictionary.length})`;
+        select.appendChild(allOpt);
+        for (const [catKey, catNames] of Object.entries(categories)) {
+            const opt = document.createElement('option');
+            opt.value = catKey;
+            opt.innerText = catNames[sourceLang] || catNames['en']; 
+            select.appendChild(opt);
+        }
+        if ([...select.options].some(o => o.value === currentVal)) { select.value = currentVal; } else { select.value = 'all'; }
+    }
+
+    function updateCategory() {
+        const cat = document.getElementById('categorySelect').value;
+        const input = document.getElementById('searchInput');
+        if (cat === 'all') { sentences = [...fullDictionary]; } else { sentences = fullDictionary.filter(item => item.category === cat); }
+        input.value = ""; 
+        renderDict();
+        if(currentActiveTab === 'game') nextGame();
+        if(currentActiveTab === 'speech') nextSpeech();
+    }
+
+
+    
+// --- GÜÇLENDİRİLMİŞ SES MOTORU (iOS UYUMLU) ---
+    
+    // Ses nesnesini global yapıyoruz ki iPhone hafızadan silmesin
+    window.currentUtterance = null; 
+
+    // Sayfa açılınca veya ilk dokunuşta motoru uyandır
+    function wakeupTTS() {
+        if (window.speechSynthesis) {
+            // Boş bir ses çalarak motoru ısıtıyoruz
+            const dummy = new SpeechSynthesisUtterance(" ");
+            window.speechSynthesis.speak(dummy);
+        }
+    }
+
+    window.speak = async function(text, langKey, callback) {
+        if (!text) return;
+
+        // Parantez temizliği (Okunuşları sil)
+        let textToSpeak = text;
+        if (text.includes('(')) { textToSpeak = text.split('(')[0].trim(); }
+
+        // Önceki konuşmayı durdur
+        stopAllSpeech(); 
+        isSpeakingGlobal = true;
+
+        // Cümleleri böl (Uzun metinler için)
+        currentSpeechChunks = textToSpeak.match(/[^.!?]+[.!?]+/g) || [textToSpeak];
+        currentChunkIndex = 0;
+
+        const speakNext = () => {
+            if (!isSpeakingGlobal || currentChunkIndex >= currentSpeechChunks.length) {
+                isSpeakingGlobal = false;
+                if (callback) callback();
+                return;
+            }
+            
+            const currentText = currentSpeechChunks[currentChunkIndex].trim();
+            // Eğer metin boşsa atla
+            if (!currentText) { currentChunkIndex++; speakNext(); return; }
+
+            const rate = parseFloat(document.getElementById('speechRate')?.value || 1.0);
+            
+            // 1. CAPACITOR (Mobil Uygulama Kontrolü)
+            if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.TextToSpeech) {
+                window.Capacitor.Plugins.TextToSpeech.speak({
+                    text: currentText, 
+                    lang: VOICE_MAP[langKey] || 'en-US', 
+                    rate: rate
+                }).then(() => { currentChunkIndex++; speakNext(); });
+                return;
+            }
+            
+            // 2. WEB TARAYICI (Standart)
+            if (!window.speechSynthesis) return;
+            
+            try {
+                // iPhone için kritik hamle: Nesneyi window'a ata!
+                window.currentUtterance = new SpeechSynthesisUtterance(currentText);
+                
+                // Dil ayarı (Tam kod olması şart: tr-TR gibi)
+                window.currentUtterance.lang = VOICE_MAP[langKey] || 'en-US';
+                window.currentUtterance.rate = rate;
+                window.currentUtterance.volume = 1.0; // Sesi fulle
+
+                // Olay dinleyicileri
+                window.currentUtterance.onend = () => { 
+                    currentChunkIndex++; 
+                    speakNext(); 
+                };
+                
+                window.currentUtterance.onerror = (e) => { 
+                    console.error("Ses hatası:", e); 
+                    // Hata olsa bile diğer cümleye geçmeye çalış
+                    currentChunkIndex++; 
+                    speakNext(); 
+                };
+
+                // Konuştur
+                window.speechSynthesis.speak(window.currentUtterance);
+
+            } catch (e) { console.error("TTS Başlatma hatası", e); }
+        };
+        
+        speakNext();
+    };
+
+    function playById(id) {
+        // ID üzerinden kelimeyi bul
+        const item = fullDictionary.find(x => x.id == id);
+        if (!item) return;
+
+        // Dil çiftini al (örn: tr-en)
+        const pair = document.getElementById('langPair').value.split('-');
+        const targetLangCode = pair[1]; // en, de, ru...
+        
+        // Almanca veri anahtarı 'alm' ama dil kodu 'de' olduğu için düzeltme
+        const targetKey = targetLangCode === 'de' ? 'alm' : targetLangCode;
+        
+        // Eğer veritabanında o dilde veri yoksa
+        if (!item[targetKey]) {
+            alert("Bu kelimenin bu dilde karşılığı yok.");
+            return;
+        }
+
+        // iPhone'da tıklama anında speak çağırmak önemlidir
+        window.speak(item[targetKey], targetLangCode);
+    }
+
+    function stopAllSpeech() {
+        isSpeakingGlobal = false;
+        currentChunkIndex = 99999; 
+        if (window.speechSynthesis) {
+            window.speechSynthesis.cancel();
+        }
+        if (window.currentUtterance) {
+            window.currentUtterance = null;
+        }
+    }
+
+
+    function stopAllSpeech() {
+        isSpeakingGlobal = false;
+        currentChunkIndex = 99999; 
+        if (window.speechSynthesis) window.speechSynthesis.cancel();
+        if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.TextToSpeech) window.Capacitor.Plugins.TextToSpeech.stop();
+    }
+
+    function togglePauseResume() {
+        if (!isSpeakingGlobal) return; 
+        if (window.speechSynthesis) {
+            if (window.speechSynthesis.paused) { window.speechSynthesis.resume(); document.getElementById('pauseBtn').innerText = "DURDUR"; } else { window.speechSynthesis.pause(); document.getElementById('pauseBtn').innerText = "BAŞLAT"; }
+        }
+    }
+
+    function clearTTS() {
+        stopAllSpeech(); 
+        document.getElementById('ttsInput').value = "";
+        document.getElementById('translatedResult').innerText = "";
+        document.getElementById('speakResultBtn').style.display = 'none';
+        document.getElementById('pauseBtn').innerText = "DURDUR";
+    }
+
+	async function translateText() {
+		const text = document.getElementById('ttsInput').value;
+		const langPairVal = document.getElementById('langPair').value; 
+		const resDiv = document.getElementById('translatedResult');
+		
+		if (!text) { resDiv.innerText = "Lütfen çevrilecek metni girin."; return; }
+
+		// İnternet kontrolü
+		if (!navigator.onLine) {
+			resDiv.innerText = "⚠️ Çeviri için internet bağlantısı gereklidir (Offline Mod).";
+			return;
+		}
+
+		let sourceLang = langPairVal.split('-')[0];
+		let targetLang = langPairVal.split('-')[1];
+
+		resDiv.style.direction = "ltr";
+		resDiv.style.textAlign = "left";
+		resDiv.innerText = "Çevriliyor...";
+		
+		let translationDone = false;
+
+		// --- MyMemory API ---
+		try {
+			const randomMail = `user${Math.floor(Math.random() * 100000)}@gmail.com`;
+			const pair = `${sourceLang}|${targetLang}`;
+			
+			// 5 saniyelik zaman aşımı (Timeout) kontrolü - Manuel
+			const controller = new AbortController();
+			const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+			const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${pair}&de=${randomMail}`;
+			
+			const response = await fetch(url, { signal: controller.signal });
+			clearTimeout(timeoutId); // İşlem başarılıysa sayacı durdur
+
+			const data = await response.json();
+
+			if (data && data.responseData && data.responseData.translatedText) {
+				window.lastTranslation = data.responseData.translatedText; 
+				window.lastTargetLang = targetLang; 
+
+				resDiv.innerText = window.lastTranslation;
+				if (targetLang === 'ar') { resDiv.style.direction = "rtl"; resDiv.style.textAlign = "right"; }
+
+				document.getElementById('speakResultBtn').style.display = 'block';
+				translationDone = true;
+				return;
+			}
+		} catch (err) { 
+			console.warn("MyMemory API yanıt vermedi veya zaman aşımı:", err.message); 
+		}
+
+		// --- Lingva API (Yedek) ---
+		if (!translationDone) {
+			try {
+				const controller = new AbortController();
+				const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+				const url = `https://lingva.ml/api/v1/${sourceLang}/${targetLang}/${encodeURIComponent(text)}`;
+				const response = await fetch(url, { signal: controller.signal });
+				clearTimeout(timeoutId);
+
+				if (response.ok) {
+					const data = await response.json();
+					if (data && data.translation) {
+						window.lastTranslation = data.translation;
+						window.lastTargetLang = targetLang;
+
+						resDiv.innerText = window.lastTranslation;
+						if (targetLang === 'ar') { resDiv.style.direction = "rtl"; resDiv.style.textAlign = "right"; }
+
+						document.getElementById('speakResultBtn').style.display = 'block';
+						translationDone = true;
+						return; 
+					}
+				}
+			} catch (e) { 
+				console.warn("Lingva API yanıt vermedi:", e.message); 
+			}
+		}
+		
+		if (!translationDone) { 
+			resDiv.innerText = "Bağlantı sorunu: Çeviri sunucularına ulaşılamadı."; 
+		}
+	}
+    function nextGame() {
+        const btn = document.getElementById('nextGameBtn');
+        btn.classList.add('btn-disabled');
+        btn.classList.remove('btn-active-next');
+        document.getElementById('gameSuccessZone').innerText = "";
+        const pair = document.getElementById('langPair').value.split('-');
+        if(sentences.length === 0) {
+            document.getElementById('gameQuestion').innerText = "Bu kategoride veri yok.";
+            document.getElementById('optionsGrid').innerHTML = "";
+            return;
+        }
+        const item = sentences[Math.floor(Math.random() * sentences.length)];
+        window.activeGameItem = item;
+        const qK = pair[0] === 'tr' ? 'tr' : (pair[0]==='de'?'alm':pair[0]);
+        const aK = pair[1] === 'tr' ? 'tr' : (pair[1]==='de'?'alm':pair[1]);
+        document.getElementById('gameQuestion').innerText = item[qK];
+        let opts = [item[aK]];
+        while(opts.length < 4) {
+            let r = sentences[Math.floor(Math.random() * sentences.length)][aK];
+            if(r && !opts.includes(r)) opts.push(r);
+        }
+        opts.sort(() => Math.random() - 0.5);
+        const grid = document.getElementById('optionsGrid');
+        grid.innerHTML = '';
+        opts.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'btn-action'; btn.style.background = "white"; btn.style.color = "var(--text)"; btn.style.border = "1px solid #ddd"; btn.style.fontSize="1em";
+            btn.innerText = opt;
+            btn.onclick = () => {
+                window.speak(opt, pair[1]);
+                if(opt === item[aK]) {
+                    btn.style.background = "#e2e8f0"; btn.style.color = "var(--text)"; btn.style.border = "2px solid #cbd5e1";
+                    const msg = TEBRİKLER[Math.floor(Math.random() * TEBRİKLER.length)];
+                    const emoji = HAPPY_EMOJIS[Math.floor(Math.random() * HAPPY_EMOJIS.length)];
+                    const gZone = document.getElementById('gameSuccessZone');
+                    gZone.innerHTML = `<span style="color:var(--success)">${msg} ${emoji} (DOĞRU)</span>`;
+                    const nextBtn = document.getElementById('nextGameBtn');
+                    nextBtn.classList.remove('btn-disabled'); nextBtn.classList.add('btn-active-next');
+                } else { 
+                    btn.disabled = true; btn.style.opacity = "0.4"; 
+                    const emoji = SAD_EMOJIS[Math.floor(Math.random() * SAD_EMOJIS.length)];
+                    const gZone = document.getElementById('gameSuccessZone');
+                    gZone.innerHTML = `<span style="color:var(--error)">YANLIŞ! ${emoji}</span>`;
+                }
+            };
+            grid.appendChild(btn);
+        });
+    }
+
+    async function toggleRecognition() {
+        const pair = document.getElementById('langPair').value.split('-');
+        const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const zone = document.getElementById('speechSuccessZone');
+        if (!SpeechRec) { zone.innerText = "Hata: Cihaz desteklemiyor."; zone.style.color = "var(--error)"; return; }
+        if(isRecording && recognition) { recognition.stop(); return; }
+        recognition = new SpeechRec();
+        recognition.lang = VOICE_MAP[pair[1]] || 'en-US';
+        recognition.continuous = false; recognition.interimResults = true; 
+        
+        recognition.onstart = () => { isRecording = true; document.getElementById('micBtn').classList.add('recording'); zone.innerText = "Bağlantı kuruldu, hazırlanıyor..."; zone.style.color = "var(--text)"; };
+        recognition.onaudiostart = () => { zone.innerText = "Mikrofon aktif! Şimdi konuşun."; zone.style.color = "var(--primary)"; };
+        recognition.onend = () => { isRecording = false; document.getElementById('micBtn').classList.remove('recording'); };
+        
+        recognition.onerror = (e) => { 
+            isRecording = false; document.getElementById('micBtn').classList.remove('recording'); 
+            let msg = "Hata: " + e.error; 
+            if(e.error === 'not-allowed' || e.error === 'service-not-allowed') msg = "Hata: Mikrofon İzni Verilmedi (Ayarlardan Açın)"; 
+            if(e.error === 'no-speech') msg = "Ses duyulmadı (Tekrar deneyin)";
+            zone.innerText = msg; zone.style.color = "var(--error)"; 
+        };
+
+        recognition.onresult = (e) => {
+            const s = e.results[0][0].transcript.toLowerCase();
+            const targetKey = pair[1]==='de'?'alm':pair[1];
+            const t = window.activeSpeechItem[targetKey].toLowerCase();
+            zone.innerText = "Algılanan: " + s;
+            if(e.results[0].isFinal) {
+                if(s.includes(t) || t.includes(s)) { 
+                    zone.style.color = "var(--success)"; zone.innerText += " (Doğru!)";
+                    if(window.activeSpeechItem) window.activeSpeechItem.solved = true;
+                    setTimeout(nextSpeech, 1500);
+                } else { zone.style.color = "var(--error)"; }
+            }
+        };
+        
+        try { recognition.start(); } catch(e) { zone.innerText = "Başlatma Hatası: Sayfayı yenileyin."; }
+    }
+
+    function nextSpeech() {
+            document.getElementById('speechSuccessZone').innerText = ""; 
+            document.getElementById('nextSpeechBtn').style.display = 'none';
+            
+            const pair = document.getElementById('langPair').value.split('-');
+            const unsolved = sentences.filter(s => !s.solved);
+            
+            // Eğer çözülecek cümle kalmadıysa
+            if(unsolved.length === 0) { 
+                document.getElementById('speechTarget').innerText = sentences.length > 0 ? "TÜMÜ TAMAMLANDI!" : "Bu kategoride veri yok."; 
+                return; 
+            }
+            
+            const item = unsolved[Math.floor(Math.random() * unsolved.length)];
+            window.activeSpeechItem = item;
+            
+            // Hedef dil (Örn: İngilizce) ve Kaynak dil (Örn: Türkçe) anahtarlarını belirle
+            const sourceKey = pair[0] === 'de' ? 'alm' : pair[0];
+            const targetKey = pair[1] === 'de' ? 'alm' : pair[1];
+            
+            // İÇERİĞİ GÜNCELLEME KISMI
+            // Üstte büyük hedef dil, altta küçük kaynak dil
+            document.getElementById('speechTarget').innerHTML = `
+                ${item[targetKey]}
+                <div style="font-size: 0.55em; color: #64748b; margin-top: 8px; font-weight: normal;">
+                    ${item[sourceKey]}
+                </div>
+            `;
+        }
+
+    function showTab(t) {
+        currentActiveTab = t;
+        document.querySelectorAll('.card').forEach(c => c.classList.remove('active-area'));
+        document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
+        document.getElementById(t + '-area').classList.add('active-area');
+        document.getElementById('tab-' + t).classList.add('active');
+        if(t === 'game') nextGame();
+        if(t === 'speech') nextSpeech();
+        if(t === 'tts') loadStories();
+    }
+
+    function loadStories() {
+        document.getElementById('storyList').innerHTML = stories.map((s, i) => `<div class="dict-item" onclick="selectStory(${i})"><b>📖 ${s.title}</b></div>`).join('');
+    }
+    function selectStory(i) { document.getElementById('ttsInput').value = stories[i].content; }
+
+    function speakItem(item, type) {
+        if(!item) return;
+        const pair = document.getElementById('langPair').value.split('-');
+        const k = pair[1] === 'de' ? 'alm' : pair[1];
+        window.speak(item[k], pair[1]);
+    }
+
+    function speakManual(m) {
+        const pair = document.getElementById('langPair').value.split('-');
+        const text = m === 'source' ? document.getElementById('ttsInput').value : window.lastTranslation;
+        window.speak(text, m === 'source' ? pair[0] : pair[1]);
+    }
+
+    function initApp(l = false) { 
+        if(l) renderCategoryOptions(); 
+        renderDict(); 
+        showTab(currentActiveTab); 
+    }
+
+    function renderDict() {
+        const pair = document.getElementById('langPair').value.split('-');
+        const val = document.getElementById('searchInput').value.toLowerCase();
+        const listDiv = document.getElementById('dictionaryList');
+        if (!val && sentences.length > 0) {
+            const initialList = sentences.slice(0, 15);
+            displayList(initialList, pair, listDiv);
+            return;
+        }
+        if(!val) { listDiv.innerHTML = ''; return; }
+        const qK = pair[0] === 'de' ? 'alm' : pair[0];
+        const aK = pair[1] === 'de' ? 'alm' : pair[1];
+        const filtered = sentences.filter(s => (s[qK]||"").toLowerCase().includes(val) || (s[aK]||"").toLowerCase().includes(val));
+        displayList(filtered.slice(0, 15), pair, listDiv);
+    }
+    
+    function displayList(items, pair, container) {
+            const qK = pair[0] === 'de' ? 'alm' : pair[0];
+            const aK = pair[1] === 'de' ? 'alm' : pair[1];
+            
+            container.innerHTML = items.map(item => `
+                <div class="dict-item">
+                    <div>
+                        <b>${item[qK]}</b><br>
+                        <small>${item[aK]}</small>
+                    </div>
+                    <div onclick='playById(${item.id})' style="cursor:pointer; font-size:1.4em; padding:10px;">
+                        🔊
+                    </div>
+                </div>`).join('');
+        }
+
+    function startToolsDictation() {
+        const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRec) { alert("Tarayıcı desteklemiyor."); return; }
+        const recognition = new SpeechRec();
+        const pair = document.getElementById('langPair').value.split('-');
+        recognition.lang = VOICE_MAP[pair[0]] || 'tr-TR'; 
+        recognition.onstart = () => { document.getElementById('ocr-status').innerText = "Dinleniyor..."; };
+        recognition.onend = () => { document.getElementById('ocr-status').innerText = ""; };
+        recognition.onresult = (e) => { const t = e.results[0][0].transcript; const area = document.getElementById('toolsInput'); area.value += (area.value ? " " : "") + t; };
+        recognition.start();
+    }
+
+    // --- GELİŞTİRİLMİŞ OCR FONKSİYONU ---
+    let cropper; // Cropper değişkeni
+
+        // 1. Dosya seçilince Kesme Ekranını Aç
+        function processAndRunOCR(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                // Modalı göster
+                document.getElementById('crop-modal').style.display = 'flex';
+                
+                const image = document.getElementById('image-to-crop');
+                image.src = e.target.result;
+
+                // Varsa eski cropper'ı temizle
+                if (cropper) { cropper.destroy(); }
+
+                // Yeni Cropper başlat
+                cropper = new Cropper(image, {
+                    viewMode: 1,
+                    dragMode: 'move',
+                    autoCropArea: 0.8,
+                    background: false,
+                });
+            };
+            reader.readAsDataURL(file);
+            input.value = ''; // Inputu temizle
+        }
+
+        // 2. Resmi Döndür
+        function rotateImage(degree) {
+            if(cropper) cropper.rotate(degree);
+        }
+
+        // 3. İptal Et
+        function closeCropper() {
+            document.getElementById('crop-modal').style.display = 'none';
+            if (cropper) { cropper.destroy(); cropper = null; }
+        }
+
+        // 4. Kesilen Alanı Tara (Tesseract)
+        function finishCrop() {
+            if (!cropper) return;
+            const status = document.getElementById('ocr-status');
+            const pair = document.getElementById('langPair').value.split('-');
+            const langMap = {'tr':'tur', 'en':'eng', 'de':'deu', 'fr':'fra', 'it':'ita', 'es':'spa', 'ja':'jpn', 'ru':'rus','ar': 'ara','el': 'ell'};
+            const lang = langMap[pair[0]] || 'eng';
+
+            document.getElementById('crop-modal').style.display = 'none';
+            status.innerText = "Kesilen alan taranıyor...";
+
+            cropper.getCroppedCanvas({ maxWidth: 1500, maxHeight: 1500 }).toBlob((blob) => {
+                Tesseract.recognize(
+                    blob,
+                    lang,
+                    { 
+                        workerPath: './libs/worker.min.js',
+                        corePath: './libs/tesseract-core.wasm.js',
+                        langPath: './libs', // Dosya bu klasörde olduğu için
+                        gzip: true,        // .gz uzantılı dosya kullandığın için true yapıyoruz
+                        logger: m => console.log(m)
+                    }
+                ).then(({ data: { text } }) => {
+                    document.getElementById('toolsInput').value = text;
+                    status.innerText = "Tarama başarılı!";
+                    status.style.color = "var(--success)";
+                    cropper.destroy(); cropper = null;
+                }).catch(err => {
+                    status.innerText = "Hata: " + err;
+                    status.style.color = "var(--error)";
+                });
+            }, 'image/jpeg', 0.85);
+        }
+
+    function transferToTTS() {
+        const text = document.getElementById('toolsInput').value;
+        if(!text) return;
+        document.getElementById('ttsInput').value = text;
+        showTab('tts');
+    }
+
+	// --- SERVICE WORKER KAYDI (GÜÇLENDİRİLMİŞ) ---
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            // './sw.js' yazımı GitHub Pages için daha güvenlidir
+            navigator.serviceWorker.register('./sw.js')
+                .then((reg) => {
+                    console.log('Service Worker başarıyla kaydedildi. Kapsam:', reg.scope);
+                })
+                .catch((err) => {
+                    console.error('Service Worker kayıt hatası:', err);
+                });
+        });
+    }
+
+    async function bagimliliklariKontrolEt() {
+        if (localStorage.getItem("offlineKontrolOnaylandi") === "true") return;
+
+        const dosyalar = [
+            './index.html',
+            './manifest.json',
+            './icon.png',
+            './images.png',
+            './logo.png',
+            './categories.js',
+            './dictionary.js',
+            './hikayedata.js',
+            './categories.js',
+            './data.js',
+            './chess.html',
+            './sudoku.html',
+            './bulmaca.html',
+            './libs/worker.min.js',
+            './libs/tesseract.min.js',
+            './libs/tesseract-core.wasm',
+            './libs/tesseract-core.wasm.js',
+            './libs/cropper.min.css',
+            './libs/cropper.min.js',
+            './libs/tur.traineddata.gz',
+            './assets/logo.png',
+            // SATRANÇ TAŞLARI VE SESLERİ (Eksik olan kısım burasıydı)
+            './assets/imaj/B.svg', './assets/imaj/K.svg', './assets/imaj/N.svg', './assets/imaj/P.svg', './assets/imaj/Q.svg', './assets/imaj/R.svg',
+            './assets/imaj/b1.svg', './assets/imaj/k1.svg', './assets/imaj/n1.svg', './assets/imaj/p1.svg', './assets/imaj/q1.svg', './assets/imaj/r1.svg',
+            './assets/sound/move.mp3', './assets/sound/capture.mp3','./assets/sound/clap.mp3', './assets/sound/wrong.mp3', './assets/sound/check.mp3'
+        ];
+
+        let eksikDosyalar = [];
+        for (let dosya of dosyalar) {
+            try {
+                const yanit = await fetch(dosya, { method: 'HEAD' });
+                if (!yanit.ok) eksikDosyalar.push(dosya);
+            } catch (hata) {
+                eksikDosyalar.push(dosya);
+            }
+        }
+
+        if (eksikDosyalar.length > 0) {
+            alert("⚠️ Eksik dosyalar var, çevrimdışı mod hatalı çalışabilir:\n" + eksikDosyalar.join('\n'));
+        } else {
+            const onay = confirm("✅ Uygulama çevrimdışı kullanım için hazır!");
+            if (onay) localStorage.setItem("offlineKontrolOnaylandi", "true");
+        }
+    }
+
+</script>
+</body>
+</html>
+
+
+<!--   npm init @capacitor/app  bunu yazma
+
+C:\Users\erkanalptekin\Desktop\VSCode\sözlük\
+│
+├── package.json         ← Kalsın burda
+├── capacitor.config.json ← Kalsın burda
+├── www\                 ← Yeni klasör
+│   ├── index.html
+│   ├── styles.css
+│   ├── app.js
+│   └── data.js
+
+1   npm init -y → package.json oluştur
+2   mkdir www ve tüm web dosyalarını www/ içine taşı
+3   npx cap init → Capacitor başlat
+4   npx cap add android → Android platformu ekle
+
+bundan sonrası android studioda
+5   npx cap copy → Web dosyalarını kopyala
+6   npx cap open android → Android Studio aç ve APK üret
+3 npm install @capacitor/assets --save-dev
+4 npx capacitor-assets generate --android
+
+# 1. Android platformunu projeye ekle
+npx cap add android
+
+# 2. Web dosyalarını Android projesine kopyala
+npx cap copy
+
+# 3. Tüm eklentileri (App, StatusBar vb.) senkronize et
+npx cap sync
+gradle assembleDebug     vscode apk yapma
+
+npx capacitor-assets generate --android    otomatik logo oluşturma vscode
+
+*******************************
+# Projeyi başlat
+npm init -y
+
+# Capacitor'ü kur
+npm install @capacitor/core @capacitor/cli
+
+# Yapılandır (Soru sorunca "www" yazmayı unutma)
+npx cap init
+
+# Android desteğini kur ve ekle
+npm install @capacitor/android
+npx cap add android
+
+App name: Alptekin Pro 2026 yaz ve Enter'a bas.
+
+App ID: com.alptekin.pro yaz ve Enter'a bas.
+
+Web directory: Burası çok önemli, www yaz ve Enter'a bas. (Eğer varsayılan olarak dist gelirse silip www yazmalısın).
+
+npm install @capacitor/android
+
+npx cap add android
+
+# Aracı kur
+npm install @capacitor/assets --save-dev
+
+# İkonları oluştur (assets/logo.png dosyanı kaynak olarak kullanır)
+# Not: Logonun en az 1024x1024 olması en iyi sonucu verir
+npx capacitor-assets generate --android
+
+npx cap copy
+npx cap sync
+
+npx cap open android
+
+Android Studio açıldığında şunları yapmalısın:
+
+Sağ altta "Gradle Sync" işleminin bitmesini bekle (mavi bir çubuk ilerler).
+
+Üst menüden Build > Build Bundle(s) / APK(s) > Build APK(s) yolunu izle.
+
+İşlem bittiğinde sağ altta bir bildirim çıkacak, "locate" diyerek APK dosyasına ulaşabilirsin.
+
+Logonun Android Studio içinde manuel kontrolü (Gerekirse): Eğer ikonları yukarıdaki komutla yapamazsan; Android Studio içinde app klasörüne sağ tıkla -> New -> Image Asset yolunu izleyerek de logonu seçip boyutlandırabilirsin.
+
+
+Gradle Bittikten Sonra İkon Ayarı:
+Gradle işlemi bittiğinde (alt kısımdaki ilerleme çubukları kaybolduğunda) şu adımları izle:
+
+Android Studio'da sol taraftaki proje panelinden app klasörüne sağ tıkla.
+
+New > Image Asset seçeneğine tıkla.
+
+Açılan pencerede:
+
+Icon Type: Launcher Icons (Adaptive and Legacy) seçili kalsın.
+
+Path: Klasör ikonuna bas ve senin www/assets/logo.png dosyanı seç.
+
+Scaling: "Resize" çubuğuyla logonu güvenli alanın (yuvarlak çizginin) içine sığacak şekilde ayarla.
+
+Background Layer: Eğer logonun arkası şeffafsa ve kötü duruyorsa, burada "Color" seçip arka planı uygulamanın rengi olan #0f172a yapabilirsin.
+
+Next ve sonra Finish diyerek işlemi tamamla.
+
+Son Adım: APK Alma
+İkon işi bittikten sonra;
+
+Üst menüden Build -> Build Bundle(s) / APK(s) -> Build APK(s) yolunu izle.
+
+Android Studio projeyi derleyecek ve bittiğinde sağ altta "Locate" yazan bir bildirim çıkaracak. Ona tıkladığında debug.apk dosyan karşında olacak!
+
+Gradle indirme işlemi bitti mi? Herhangi bir "Error" (Kırmızı yazı) verdi mi yoksa "Build Successful" mı diyor?
+
+
+capasitor ses paketi yüklemek için          npm install @capacitor-community/text-to-speech
+
+
+1. Dil Seçme Kutusuna Rusça Ekleme (HTML)
+<option value="tr-ru">Türkçe → Rusça</option>
+<option value="ru-tr">Rusça → Türkçe</option>
+
+2. Ses Kodunu Ekleme (JavaScript)
+<script> etiketleri arasındaki const VOICE_MAP değişkenini bulun ve 'ru': 'ru-RU' satırını ekleyin. (Virgüle dikkat edin).
+const VOICE_MAP = { 
+    'tr': 'tr-TR', 
+    'en': 'en-US', 
+    'de': 'de-DE', 
+    'fr': 'fr-FR', 
+    'it': 'it-IT', 
+    'es': 'es-ES',
+    'ja': 'ja-JA',
+    'ru': 'ru-RU'  // <-- YENİ EKLENEN (Rusça Ses Kodu)
+};
+
+3. Kamera/OCR Dil Kodunu Ekleme (JavaScript)
+Yine <script> etiketleri içinde, (az önce güncellediğimiz) processAndRunOCR fonksiyonunun içindeki langMap değişkenini bulun. Rusça Tesseract kodunu (rus) ekleyin.
+// processAndRunOCR veya runOCR fonksiyonunun içinde:
+const langMap = {
+    'tr':'tur', 
+    'en':'eng', 
+    'de':'deu', 
+    'fr':'fra', 
+    'it':'ita', 
+    'es':'spa',
+    'ja':'jpn',
+    'ru':'rus'   // <-- YENİ EKLENEN (Rusça Kamera Kodu)
+};
